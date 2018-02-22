@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <thread>
 
 
 int main () {
@@ -37,9 +38,14 @@ int main () {
         memcpy (msg->data (), sbuf.data(), sbuf.size());
 
         // message reader
+        std::cout << "Prepare to send message ..." << std::endl;
         socket.send(*msg);
+        std::cout << "Send number of tensors: "<< msg->size() << " ..." << std::endl;
 
         delete msg;
+
+        //  wait
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
     return 0;
 }

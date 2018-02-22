@@ -14,7 +14,7 @@ void PrintData(std::vector<tensor_msg> &msg){
     
     int c = 0;
     for(auto &tensor : msg){
-        std::cout << "  index: " << (c++) << std::endl;
+        std::cout << "  index: " << (c++);
         std::cout << "  shape: " << " ";
         for(int d : tensor.shape_)
             std::cout << d << " ";

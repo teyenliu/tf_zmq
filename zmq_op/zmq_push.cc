@@ -5,6 +5,7 @@
 #include <memory>
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/op_kernel.h"
+#include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/common_shape_fns.h"
 
 #include "../includes/zmq.hpp"
@@ -15,8 +16,9 @@ using namespace tensorflow;
 
 
 REGISTER_OP("ZMQPush")
-    .Input("input: float32")
+    .Attr("T: {float, double, int32}")
     .Attr("address: string")
+    .Input("input: T")
     .SetShapeFn(shape_inference::UnknownShape)
     .SetIsStateful()
     .Doc(R"doc(
@@ -40,6 +42,8 @@ public:
   zmq::socket_t socket;
 };
 
+
+template <typename T>
 class ZMQPush: public OpKernel {
  public:
   explicit ZMQPush(OpKernelConstruction* context) : OpKernel(context) {
@@ -75,39 +79,14 @@ class ZMQPush: public OpKernel {
       VLOG(0) <<  "type:" << my_tensor.dtype();
 
       //FIXME: how to detect the data type from input tensor more efficiently
-      if(my_tensor.dtype() == 0){
-        // case: type tf.int32
-        auto input_data = my_tensor.flat<int>();
-        int N = input_data.size();
-        int *zmq_data = new int[N];
-        for (int n = 0; n < N; n++)
-        {
-          zmq_data[n] = input_data(n);
-        }
-        tensors.push_back(tensor_msg(d_shape, zmq_data));
+      auto input_data = my_tensor.flat<T>();
+      int N = input_data.size();
+      T *zmq_data = new T[N];
+      for (int n = 0; n < N; n++)
+      {
+        zmq_data[n] = input_data(n);
       }
-      else if(my_tensor.dtype() == 1){
-        // case: type tf.float32
-        auto input_data = my_tensor.flat<float>();
-        int N = input_data.size();
-        float *zmq_data = new float[N];
-        for (int n = 0; n < N; n++)
-        {
-          zmq_data[n] = input_data(n);
-        }
-        tensors.push_back(tensor_msg(d_shape, zmq_data));
-      }
-      else if(my_tensor.dtype() == 2){
-        // case: type tf.float64 (double)
-        auto input_data = my_tensor.flat<double>();
-        int N = input_data.size();
-        double *zmq_data = new double[N];
-        for (int n = 0; n < N; n++)
-        {
-          zmq_data[n] = input_data(n);
-        }
-        tensors.push_back(tensor_msg(d_shape, zmq_data));
-      } 
+      tensors.push_back(tensor_msg(d_shape, zmq_data));
     }
     
     // encode
@@ -122,11 +101,17 @@ class ZMQPush: public OpKernel {
     delete msg;
     
   }
- private:
+
+private:
 
   std::string address;
   unique_ptr<zmq_pipe> pipe;
 
 };
 
-REGISTER_KERNEL_BUILDER(Name("ZMQPush").Device(DEVICE_CPU), ZMQPush);
+//#define CPU_KERNEL(type)
+REGISTER_KERNEL_BUILDER(Name("ZMQPush").Device(DEVICE_CPU).TypeConstraint<float>("T"), ZMQPush<float>)
+REGISTER_KERNEL_BUILDER(Name("ZMQPush").Device(DEVICE_CPU).TypeConstraint<int32>("T"), ZMQPush<int32>)
+REGISTER_KERNEL_BUILDER(Name("ZMQPush").Device(DEVICE_CPU).TypeConstraint<double>("T"), ZMQPush<double>)
+//CPU_KERNEL(int32)
+//CPU_KERNEL(float)
